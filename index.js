@@ -1,15 +1,11 @@
-import fastify from 'fastify'
+const fastify = require('fastify')({ logger: true });
 
-const server = fastify()
+fastify.register(require('./routes/user'));
 
-server.get('/', async (request, reply) => {
-	return 'pong\n'
-})
-
-server.listen({ host: '0.0.0.0', port: 3000}, (err, addr) => {
+fastify.listen({ port: 5432 }, (err, address) => {
 	if (err) {
-		console.error(err)
-		process.exit(1)
+		fastify.log.error(err);
+		process.exit(1);
 	}
-	console.log(`Serveir listening at ${addr}`)
-})
+	fastify.log.info(`Server listening at ${address}`);
+});
