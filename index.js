@@ -1,4 +1,7 @@
 const fastify = require('fastify')({ logger: true });
+const metricsPlugin = require('fastify-metrics')
+
+fastify.register(metricsPlugin, { endpoint: '/metrics' })
 
 fastify.register(require('./routes/user'));
 
