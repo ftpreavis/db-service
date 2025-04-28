@@ -17,4 +17,15 @@ model User {
   id       Int    @id @default(autoincrement())
   username String @unique
   email    String @unique
+  stats    Stat?
+}
+
+model Stat {
+  id     Int  @id @default(autoincrement())
+  user   User @relation(fields: [userId], references: [id])
+  userId Int  @unique
+
+  wins   Int @default(0)
+  losses Int @default(0)
+  streak Int @default(0)
 }

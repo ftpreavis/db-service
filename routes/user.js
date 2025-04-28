@@ -13,9 +13,15 @@ module.exports = async function (fastify, opts) {
 		let user;
 
 		if (/^\d+$/.test(idOrUsername)) {
-			user = await prisma.user.findUnique({ where: { id: Number(idOrUsername) } });
+			user = await prisma.user.findUnique({
+				where: { id: Number(idOrUsername) },
+				include: { stats: true}
+			});
 		} else {
-			user = await prisma.user.findUnique({ where: { username: idOrUsername } });
+			user = await prisma.user.findUnique({
+				where: { username: idOrUsername },
+				include: { stats: true }
+			});
 		}
 
 		if (!user) {
