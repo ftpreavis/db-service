@@ -14,10 +14,18 @@ datasource db {
 }
 
 model User {
-  id       Int    @id @default(autoincrement())
-  username String @unique
-  email    String @unique
-  stats    Stat?
+  id         Int        @id @default(autoincrement())
+  username   String     @unique
+  email      String     @unique
+  password   String? //optionnal password (site users only)
+  googleId   String?    @unique //optionnal (google users only)
+  authMethod AuthMethod
+  stats      Stat?
+}
+
+enum AuthMethod {
+  LOCAL
+  GOOGLE
 }
 
 model Stat {

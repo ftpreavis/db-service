@@ -3,6 +3,24 @@ const prisma = new PrismaClient();
 
 module.exports = async function (fastify, opts) {
 
+	async function generateUniqueUsername(base) {
+		let username = base;
+		let suffix = 0;
+
+		while (true) {
+			const existing = await prisma.user.findUnique({
+				where: { username },
+			});
+
+			if (!existing) break;
+
+			suffix++;
+			username = `${base}${suffix}`;
+		}
+
+		return username;
+	}
+
 	fastify.get('/users', async (request, reply) => {
 		return prisma.user.findMany();
 	});
@@ -31,18 +49,54 @@ module.exports = async function (fastify, opts) {
 		return user;
 	});
 
-	fastify.post('/users', async (request, reply) => {
-		const { username } = request.body;
+	fastify.post('/users', async (req, reply) => {
+		const { username, password } = req.body;
+
 		try {
 			const user = await prisma.user.create({
 				data: {
-					username
+					username,
+					passwordHash: password,
+					authMethod: 'LOCAL',
 				}
 			});
+
 			return { id: user.id };
 		} catch (err) {
-			console.error(err)
-			reply.code(400).send({ error: 'User already exists or invalid data'});
+			console.error(err);
+			return reply.code(400).send({ error: 'User already exists or invalid data' });
+		}
+	});
+
+	fastify.post('/users/google', async (req, reply) => {
+		const { googleId, email } = req.body;
+
+		try {
+			const existingUser = await prisma.user.findUnique({
+				where: { email },
+			});
+
+			if (existingUser) {
+				return { id: existingUser.id };
+			}
+
+			const baseUsername = email.split('@')[0]; // ou un nom issu du profil Google
+			const username = await generateUniqueUsername(baseUsername);
+
+
+			const user = await prisma.user.create({
+				data: {
+					googleId,
+					email,
+					authMethod: 'GOOGLE',
+					username: username,
+				}
+			});
+
+			return { id: user.id };
+		} catch(err) {
+			console.error(err);
+			return reply.code(400).send({ error: 'Error creating Google user' });
 		}
 	});
 };
