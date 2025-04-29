@@ -1,8 +1,4 @@
 node_modules/
-<<<<<<< HEAD
 .vscode/
 .idea/
 .env
-=======
-.env
->>>>>>> ad0c9fe (Fix: Dockerfile for prod)
