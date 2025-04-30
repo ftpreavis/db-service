@@ -30,7 +30,14 @@ module.exports = async function (fastify, opts) {
 
 		let user;
 
-		if (/^\d+$/.test(idOrUsername)) {
+		if (/^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$/.test(idOrUsername)) {
+			// Search by email
+			user = await prisma.user.findUnique({
+				where: {email: idOrUsername},
+				include: {stats: true}
+			});
+		} else if (/^\d+$/.test(idOrUsername)) {
+			// Search by id or username
 			user = await prisma.user.findUnique({
 				where: { id: Number(idOrUsername) },
 				include: { stats: true}
@@ -50,13 +57,14 @@ module.exports = async function (fastify, opts) {
 	});
 
 	fastify.post('/users', async (req, reply) => {
-		const { username, password } = req.body;
+		const { username, password, email } = req.body;
 
 		try {
 			const user = await prisma.user.create({
 				data: {
-					username,
-					passwordHash: password,
+					username: username,
+					password: password,
+					email: email,
 					authMethod: 'LOCAL',
 				}
 			});
