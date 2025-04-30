@@ -153,4 +153,34 @@ module.exports = async function (fastify, opts) {
 		}
 	});
 
+	fastify.patch('/users/:idOrUsername/avatar', async (req, reply) => {
+		try {
+			const {idOrUsername} = req.params;
+			const {avatar} = req.body;
+
+			let where = {};
+
+			if (/^\d+$/.test(idOrUsername)) {
+				where = {id: Number(idOrUsername)};
+			} else {
+				where = {username: idOrUsername};
+			}
+
+			const updated = await prisma.user.update({
+				where,
+				data: {avatar},
+				select: {
+					id: true,
+					username: true,
+					avatar: true,
+				}
+			});
+
+			return updated;
+		} catch (err) {
+			console.error('Failed to update avatar', err);
+			return reply.code(500).send({ error: 'Could not update avatar' });
+		}
+	});
+
 };

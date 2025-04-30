@@ -21,6 +21,7 @@ model User {
   googleId   String?    @unique //optionnal (google users only)
   authMethod AuthMethod
   stats      Stat?
+  avatar     String?
 }
 
 enum AuthMethod {
