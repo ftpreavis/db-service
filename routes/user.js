@@ -95,26 +95,26 @@ module.exports = async function (fastify, opts) {
 		try {
 			const existingUser = await prisma.user.findUnique({
 				where: { email },
+				select: { id: true, username: true, role: true },
 			});
 
 			if (existingUser) {
-				return { id: existingUser.id };
+				return existingUser;
 			}
 
 			const baseUsername = email.split('@')[0]; // ou un nom issu du profil Google
 			const username = await generateUniqueUsername(baseUsername);
 
 
-			const user = await prisma.user.create({
+			return await prisma.user.create({
 				data: {
 					googleId,
 					email,
 					authMethod: 'GOOGLE',
 					username: username,
-				}
+				},
+				select: {id: true, username: true, role: true},
 			});
-
-			return { id: user.id };
 		} catch(err) {
 			console.error(err);
 			return reply.code(400).send({ error: 'Error creating Google user' });
@@ -146,6 +146,7 @@ module.exports = async function (fastify, opts) {
 				username: user.username,
 				email: user.email,
 				password: user.password,
+				role: user.role,
 			};
 		} catch (err) {
 			console.error('Internal user fetch failed:', err);
@@ -183,4 +184,223 @@ module.exports = async function (fastify, opts) {
 		}
 	});
 
+	fastify.post('/friends/:idOrUsername', async (req, reply) => {
+		const { idOrUsername } = req.params;
+		const { senderId } = req.body;
+
+		if (!senderId) {
+			return reply.code(400).send({ error: 'senderId is required' });
+		}
+
+		try {
+			let friend = null;
+
+			if (/^\d+$/.test(idOrUsername)) {
+				friend = await prisma.user.findUnique({ where: { id: parseInt(idOrUsername) } });
+			} else {
+				friend = await  prisma.user.findUnique({ where: { username: idOrUsername } });
+			}
+
+			if (!friend) {
+				return reply.code(404).send({ error: 'User not found' });
+			}
+
+			if (friend.id === senderId) {
+				return reply.code(400).send({ error: 'You cannot send a friend request to yourself' });
+			}
+
+			const existing = await prisma.friendship.findFirst({
+				where: {
+					OR: [
+						{ userId: senderId, friendId: friend.id },
+						{ userId: friend.id, friendId: senderId},
+					]
+				}
+			});
+
+			if (existing) {
+				return reply.code(409).send({ error: 'Friendship already exists' });
+			}
+
+			const friendship = await prisma.friendship.create({
+				data: {
+					userId: senderId,
+					friendId: friend.id,
+					status: 'PENDING',
+				},
+				select: {
+					id: true,
+					userId: true,
+					friendId: true,
+					status: true,
+					createdAt: true,
+				}
+			});
+
+			return reply.send(friendship);
+		} catch (err) {
+			console.error("Friend request error: ", err.message);
+			if (err.response) console.error('Response:', err.response.data);
+			return reply.code(500).send({ error: 'Could not send friend request' });
+		}
+	});
+
+	fastify.patch('/friends/:id/accept', async (req, reply) => {
+		const { id } = req.params;
+		const { userId } = req.body;
+
+		if (!userId) {
+			return reply.code(400).send({ error: 'Missing userId' });
+		}
+
+		try {
+			const friendship = await prisma.friendship.findUnique({
+				where: { id: parseInt(id) },
+			})
+
+			if (!friendship) {
+				return reply.code(404).send({ error: 'Friend request not found' });
+			}
+
+			if (friendship.friendId !== userId) {
+				return reply.code(403).send({ error: 'You are not authorized to accept this request' });
+			}
+
+			if (friendship.status !== 'PENDING') {
+				return reply.code(400).send({ error: 'Request is not pending' });
+			}
+
+			const updated = await prisma.friendship.update({
+				where: { id: parseInt(id) },
+				data: { status: 'ACCEPTED' },
+				select: {
+					id: true,
+					userId: true,
+					friendId: true,
+					status: true,
+					createdAt: true,
+				}
+			});
+
+			return reply.send(updated);
+		} catch (err) {
+			console.error('Accept friend request error:', err);
+			return reply.code(500).send({ error: 'Could not accept friend request' });
+		}
+	});
+
+	fastify.get('/friends', async (req, reply) => {
+		const { userId } = req.query;
+
+		if (!userId) {
+			return reply.code(400).send({ error: 'Missing userId' });
+		}
+
+		try {
+			const friends = await prisma.friendship.findMany({
+				where: {
+					status: 'ACCEPTED',
+					OR: [
+						{ userId: parseInt(userId) },
+						{ friendId: parseInt(userId) },
+					]
+				},
+				include: {
+					user: { select: { id: true, username: true } },
+					friend: { select: { id: true, username: true } },
+				}
+			});
+
+			const formattedFriends = friends.map(f => {
+				const isSender = f.userId === parseInt(userId);
+				return isSender ? f.friend : f.user;
+			});
+
+			const pending = await prisma.friendship.findMany({
+				where: {
+					status: 'PENDING',
+					friendId: parseInt(userId),
+				},
+				include: {
+					user: { select: { id: true, username: true } },
+				}
+			});
+
+			const formattedPending = pending.map(f => ({
+				id: f.id,
+				from: f.user,
+			}));
+
+			return reply.send({
+				friends: formattedFriends,
+				pendingRequests: formattedPending,
+			});
+		} catch (err) {
+			console.error('Failed to get friend list:', err);
+			return reply.code(500).send({ error: 'Could not fetch friends' });
+		}
+	});
+
+	fastify.get('/friends/sent', async (req, reply) => {
+		const { userId } = req.query;
+
+		if (!userId) {
+			return reply.code(400).send({ error: 'Missing userId' });
+		}
+
+		try {
+			const sent = await prisma.friendship.findMany({
+				where: {
+					status: 'PENDING',
+					userId: parseInt(userId),
+				},
+				include: {
+					friend: { select: { id: true, username: true } },
+				}
+			});
+
+			const formatted = sent.map(f => ({
+				id: f.id,
+				to: f.friend,
+			}));
+
+			return reply.send({ sentRequests: formatted });
+		} catch (err) {
+			console.error('Failed to get sent requests:', err);
+			return reply.code(500).send({ error: 'Could not fetch sent requests' });
+		}
+	});
+
+	fastify.delete('/friends/:id', async (req, reply) => {
+		const { id } = req.params;
+		const { userId } = req.query;
+
+		if (!userId) {
+			return reply.code(400).send({ error: 'Missing userId' });
+		}
+
+		try {
+			const friendship = await prisma.friendship.findUnique({
+				where: { id: parseInt(id) },
+			});
+
+			if (!friendship) {
+				return reply.code(404).send({ error: 'Friendship not found' });
+			}
+
+			const isInvolved = [friendship.userId, friendship.friendId].includes(parseInt(userId));
+			if (!isInvolved) {
+				return reply.code(403).send({ error: 'Not authorized to delete this friendship' });
+			}
+
+			await prisma.friendship.delete({
+				where: { id: parseInt(id) },
+			});
+
+			return reply.send({ message: 'Friend deleted successfully' });
+		} catch (err) {
+			console.error('Failed to delete friendship:', err);
+			return reply.code(500).send({ error: 'Could not delete friendship' });
+		}
+	});
 };
