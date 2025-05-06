@@ -14,18 +14,33 @@ datasource db {
 }
 
 model User {
-  id         Int        @id @default(autoincrement())
-  username   String     @unique
-  email      String     @unique
-  password   String? //optionnal password (site users only)
-  googleId   String?    @unique //optionnal (google users only)
-  authMethod AuthMethod
-  stats      Stat?
+  id               Int          @id @default(autoincrement())
+  username         String       @unique
+  email            String       @unique
+  password         String? //optionnal password (site users only)
+  googleId         String?      @unique //optionnal (google users only)
+  authMethod       AuthMethod
+  stats            Stat?
+  avatar           String?
+  role             Role         @default(USER)
+  sentRequests     Friendship[] @relation("FriendshipSender")
+  receivedRequests Friendship[] @relation("FriendshipReceiver")
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
 }
 
 enum AuthMethod {
   LOCAL
   GOOGLE
+}
+
+enum Role {
+  USER
+  ADMIN
 }
 
 model Stat {
@@ -36,4 +51,16 @@ model Stat {
   wins   Int @default(0)
   losses Int @default(0)
   streak Int @default(0)
+}
+
+model Friendship {
+  id     Int  @id @default(autoincrement())
+  user   User @relation("FriendshipSender", fields: [userId], references: [id])
+  userId Int
+
+  friend   User @relation("FriendshipReceiver", fields: [friendId], references: [id])
+  friendId Int
+
+  status    FriendshipStatus @default(PENDING)
+  createdAt DateTime         @default(now())
 }
