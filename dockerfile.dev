@@ -2,7 +2,7 @@
 #                            Development Dockerfile                            #
 # ---------------------------------------------------------------------------- #
 
-FROM node:latest
+FROM node:24
 
 WORKDIR /app
 
@@ -10,6 +10,7 @@ COPY . .
 
 # Nodemon for hot reloads
 RUN npm install --save-dev nodemon
+RUN npx prisma db push
 
 EXPOSE 3000
 
