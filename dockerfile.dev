@@ -1,20 +1,24 @@
-# ---------------------------------------------------------------------------- #
-#                            Development Dockerfile                            #
-# ---------------------------------------------------------------------------- #
-
 FROM node:24
 
 WORKDIR /app
 
+# 1) copy package files and Prisma schema (so postinstall can generate)
+COPY package.json package-lock.json ./
+COPY prisma ./prisma
+
+# 2) install *all* deps (including dev/nodemon)
+RUN npm ci
+
+# 3) copy the rest of your app
 COPY . .
 
-# Nodemon for hot reloads
-RUN npm install --save-dev nodemon
-RUN npx prisma db push
+RUN npx prisma generate
 
 EXPOSE 3000
-
-ENV NODE_ENV=development
 ENV PORT=3000
 
-CMD ["sh", "-c", "npm install && npx nodemon index.js"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=3s \
+  CMD curl -f http://localhost:3000/metrics || exit 1
+
+# 4) start with auto-reload
+CMD ["npx", "nodemon", "index.js"]
