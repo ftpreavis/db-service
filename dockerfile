@@ -25,7 +25,7 @@ COPY --from=builder /app .
 
 USER app
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=3s \
+HEALTHCHECK --interval=10s --timeout=5s --start-period=5s \
   CMD curl -f http://localhost:3000/metrics || exit 1
 
 EXPOSE 3000
