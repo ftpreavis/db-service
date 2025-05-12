@@ -16,12 +16,16 @@ RUN adduser --system --no-create-home --group app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
-# Copy the generated Prisma client
+# Copy app code (excluding node_modules)
+COPY --from=builder /app/index.js ./
+COPY --from=builder /app/routes ./routes
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/utils ./utils
+# Copy any other folders your app needs
+
+# Copy generated Prisma client only
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
-
-# Copy your application code
-COPY --from=builder /app .
 
 USER app
 
