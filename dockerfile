@@ -1,28 +1,32 @@
-# 1) build your app
-FROM node:18-alpine AS builder
+# 1) builder: install ALL deps, generate Prisma client
+FROM node:24 AS builder
 WORKDIR /app
 
-COPY package*.json ./
-COPY prisma ./
-RUN npm ci --only=production
-
+COPY package.json package-lock.json ./
+COPY prisma ./prisma
+RUN npm ci
 COPY . .
 
-# 2) runtime image
-FROM node:18-alpine
-
-# — create the same user
-RUN addgroup -S app \
- && adduser  -S -G app app
-
+# 2) runtime: install only prod deps + copy over generated client & your code
+FROM node:24
 WORKDIR /app
 
-# — copy your built files, chowning them to app:app in one go
-COPY --from=builder --chown=app:app /app /app
+RUN adduser --system --no-create-home --group app
 
-# — switch to that user
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+
+# Copy the generated Prisma client
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
+
+# Copy your application code
+COPY --from=builder /app .
+
 USER app
 
-ENV NODE_ENV=production
+HEALTHCHECK --interval=10s --timeout=5s --start-period=5s \
+  CMD curl -f http://localhost:3000/metrics || exit 1
+
 EXPOSE 3000
 CMD ["node", "index.js"]

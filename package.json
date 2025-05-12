@@ -50,13 +50,13 @@
     "toad-cache": "^3.7.0"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-	"postinstall": "prisma generate"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "nodemon": "^3.1.10",
     "prisma": "^6.6.0"
   }
 }
