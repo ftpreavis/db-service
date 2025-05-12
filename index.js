@@ -1,5 +1,6 @@
 const fastify = require('fastify')({ logger: true });
 const metricsPlugin = require('fastify-metrics')
+require('dotenv').config();
 
 fastify.register(metricsPlugin, { endpoint: '/metrics' })
 
