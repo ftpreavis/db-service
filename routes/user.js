@@ -82,7 +82,12 @@ module.exports = async function (fastify, opts) {
 				}
 			});
 
-			return { id: user.id };
+			return {
+				id: user.id,
+				username: user.username,
+				email: user.email,
+				role: user.role,
+			};
 		} catch (err) {
 			console.error(err);
 			return reply.code(400).send({ error: 'User already exists or invalid data' });
