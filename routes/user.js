@@ -118,7 +118,7 @@ module.exports = async function (fastify, opts) {
 					authMethod: 'GOOGLE',
 					username: username,
 				},
-				select: {id: true, username: true, role: true},
+				select: {id: true, username: true, role: true, email: true},
 			});
 		} catch(err) {
 			console.error(err);
