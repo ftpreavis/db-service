@@ -8,8 +8,18 @@ module.exports = async function (fastify, opts) {
             return await  prisma.match.findMany({
                 select: {
                     id: true,
-                    player1: true,
-                    player2: true,
+                    player1: {
+                        select: {
+                            id: true,
+                            username: true,
+                        }
+                    },
+                    player2: {
+                        select: {
+                            id: true,
+                            username: true,
+                        }
+                    },
                     player1Score: true,
                     player2Score: true,
                     status: true,
