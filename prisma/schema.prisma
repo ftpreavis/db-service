@@ -25,6 +25,9 @@ model User {
   role             Role         @default(USER)
   sentRequests     Friendship[] @relation("FriendshipSender")
   receivedRequests Friendship[] @relation("FriendshipReceiver")
+
+  MatchesAsPlayer1 Match[] @relation("Player1")
+  MatchesAsPlayer2 Match[] @relation("Player2")
 }
 
 enum FriendshipStatus {
@@ -63,4 +66,26 @@ model Friendship {
 
   status    FriendshipStatus @default(PENDING)
   createdAt DateTime         @default(now())
+}
+
+model Match {
+  id Int @id @default(autoincrement())
+
+  player1   User @relation("Player1", fields: [player1Id], references: [id])
+  player1Id Int
+
+  player2   User @relation("Player2", fields: [player2Id], references: [id])
+  player2Id Int
+
+  player1Score Int
+  player2Score Int
+
+  status   MatchStatus @default(PENDING)
+  playedAt DateTime    @default(now())
+}
+
+enum MatchStatus {
+  PENDING
+  DONE
+  CANCELLED
 }
