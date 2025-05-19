@@ -5,6 +5,7 @@ require('dotenv').config();
 fastify.register(metricsPlugin, { endpoint: '/metrics' })
 
 fastify.register(require('./routes/user'));
+fastify.register(require('./routes/matches'));
 
 fastify.listen({ port: 3000, host: '0.0.0.0' }, (err, address) => {
 	if (err) {
