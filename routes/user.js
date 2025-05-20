@@ -44,8 +44,22 @@ module.exports = async function (fastify, opts) {
 
 		const include = {
 			stats: true,
-			sentRequests: true,
-			receivedRequests: true,
+			sentRequests: {
+				select: {
+					id: true,
+					status: true,
+					userId: true,
+					friendId: true
+				}
+			},
+			receivedRequests: {
+				select: {
+					id: true,
+					status: true,
+					userId: true,
+					friendId: true
+				}
+			},
 			MatchesAsPlayer1: {
 				where: { status: 'DONE' },
 				include: {
