@@ -100,6 +100,60 @@ module.exports = async function (fastify, opts) {
 		}
 	});
 
+	fastify.get('/messages/unread/total', async (req, reply) => {
+		const { userId } = req.query;
+
+		if (!userId) {
+			return reply.code(400).send({ error: 'Missing userId' });
+		}
+
+		try {
+			const count = await prisma.message.count({
+				where: {
+					receiverId: parseInt(userId),
+					read: false
+				}
+			});
+
+			return reply.send({ count });
+		} catch (err) {
+			console.error('Error fetching total unread count:', err);
+			return reply.code(500).send({ error: 'Could not get unread total' });
+		}
+	});
+
+	fastify.get('/messages/unread/by-conversation', async (req, reply) => {
+		const { userId } = req.query;
+		const parsedId = parseInt(userId);
+
+		if (!parsedId) {
+			return reply.code(400).send({ error: 'Missing or invalid userId' });
+		}
+
+		try {
+			const counts = await prisma.message.groupBy({
+				by: ['senderId'],
+				where: {
+					receiverId: parseId,
+					read: false
+				},
+				_count: {
+					_all: true
+				}
+			});
+
+			const result = counts.map(entry => ({
+				fromUserId: entry.senderId,
+				count: entry._count._all
+			}));
+
+			return reply.send(result);
+		} catch (err) {
+			console.error('Error getting unread messages per conversation:', err);
+			return reply.code(500).send({ error: 'Could not fetch unread messages per conversation' })
+		}
+	});
+
 	fastify.post('/block', async (req, reply) => {
 		const { blockerId, blockedId } = req.body;
 
