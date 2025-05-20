@@ -42,22 +42,42 @@ module.exports = async function (fastify, opts) {
 
 		let user;
 
+		const include = {
+			stats: true,
+			sentRequests: true,
+			receivedRequests: true,
+			MatchesAsPlayer1: {
+				where: { status: 'DONE' },
+				include: {
+					player2: { select: { username: true } }
+				},
+				orderBy: { playedAt: 'desc' }
+			},
+			MatchesAsPlayer2: {
+				where: { status: 'DONE' },
+				include: {
+					player1: { select: { username: true } }
+				},
+				orderBy: { playedAt: 'desc' }
+			}
+		};
+
 		if (/^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$/.test(idOrUsername)) {
 			// Search by email
 			user = await prisma.user.findUnique({
 				where: {email: idOrUsername},
-				include: {stats: true}
+				include
 			});
 		} else if (/^\d+$/.test(idOrUsername)) {
 			// Search by id or username
 			user = await prisma.user.findUnique({
 				where: { id: Number(idOrUsername) },
-				include: { stats: true}
+				include
 			});
 		} else {
 			user = await prisma.user.findUnique({
 				where: { username: idOrUsername },
-				include: { stats: true }
+				include
 			});
 		}
 
