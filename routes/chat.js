@@ -260,9 +260,25 @@ module.exports = async function (fastify, opts) {
 				}
 			}
 
-			return reply.send(conversations);
+			// Fetch user info in batch
+			const userIds = conversations.map(c => c.userId);
+			const users = await prisma.user.findMany({
+				where: { id: { in: userIds } },
+				select: { id: true, username: true, avatar: true }
+			});
+
+			const userMap = Object.fromEntries(users.map(u => [u.id, u]));
+
+			// Attach user info to conversation entries
+			const enriched = conversations.map(c => ({
+				...c,
+				username: userMap[c.userId]?.username || null,
+				avatar: userMap[c.userId]?.avatar || null
+			}));
+
+			return reply.send(enriched);
 		} catch (err) {
-			console.error('Error loading fallback conversations:', err);
+			console.error('Error loading conversations with user info:', err);
 			return reply.code(500).send({ error: 'Could not fetch conversations' });
 		}
 	});
