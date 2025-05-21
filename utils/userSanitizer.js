@@ -10,7 +10,9 @@ function sanitizeUser(user) {
         MatchesAsPlayer1,
         MatchesAsPlayer2,
         sentRequests,
-        receivedRequests
+        receivedRequests,
+        twoFAEnabled,
+        twoFASecret,
     } = user;
 
     return {
@@ -19,6 +21,8 @@ function sanitizeUser(user) {
         stats,
         avatar,
         biography,
+        twoFAEnabled,
+        twoFASecret,
         MatchesAsPlayer1: MatchesAsPlayer1 ?? [],
         MatchesAsPlayer2: MatchesAsPlayer2 ?? [],
         sentRequests: (sentRequests ?? []).map(f => ({
