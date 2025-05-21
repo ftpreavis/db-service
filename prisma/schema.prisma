@@ -32,6 +32,8 @@ model User {
   receivedMessages Message[]     @relation("ReceivedMessages")
   blockedUsers     BlockedUser[] @relation("Blocker")
   blockedBy        BlockedUser[] @relation("Blocked")
+  twoFAEnabled     Boolean       @default(false)
+  twoFASecret      String?
 }
 
 enum FriendshipStatus {

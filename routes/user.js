@@ -73,7 +73,7 @@ module.exports = async function (fastify, opts) {
 					player1: { select: { username: true } }
 				},
 				orderBy: { playedAt: 'desc' }
-			}
+			},
 		};
 
 		if (/^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$/.test(idOrUsername)) {
@@ -186,6 +186,7 @@ module.exports = async function (fastify, opts) {
 				email: user.email,
 				password: user.password,
 				role: user.role,
+				twoFAEnabled: user.twoFAEnabled,
 			};
 		} catch (err) {
 			console.error('Internal user fetch failed:', err);
@@ -445,7 +446,7 @@ module.exports = async function (fastify, opts) {
 
 	fastify.patch('/users/:idOrUsername', async (req, reply) => {
 		const { idOrUsername } = req.params;
-		const { username, biography, password } = req.body;
+		const { username, biography, password, twoFAEnabled, twoFASecret } = req.body;
 
 		try {
 			let user;
@@ -471,6 +472,8 @@ module.exports = async function (fastify, opts) {
 			if (username) updateData.username = username;
 			if (biography) updateData.biography = biography;
 			if (password) updateData.password = password;
+			if (twoFASecret) updateData.twoFASecret = twoFASecret;
+			if (twoFAEnabled) updateData.twoFAEnabled = twoFAEnabled;
 
 			const updatedUser = await prisma.user.update({
 				where: { id: user.id },
@@ -491,6 +494,42 @@ module.exports = async function (fastify, opts) {
 				message: err.message,
 				stack: err.stack,
 			});
+		}
+	});
+
+	fastify.patch('/users/2fa/:id', async (req, reply) => {
+		const userId = parseInt(req.params.id, 10);
+		const { twoFASecret, twoFAEnabled } = req.body;
+
+		try {
+			const updated = await prisma.user.update({
+				where: { id: userId },
+				data: {
+					...(twoFASecret !== undefined && { twoFASecret }),
+					...(twoFAEnabled !== undefined && { twoFAEnabled }),
+				},
+			});
+			return reply.send(updated);
+		} catch (err) {
+			req.log.error('DB update failed:', err);
+			return reply.code(500).send({ error: 'Failed to update user' });
+		}
+	});
+
+	fastify.get('/users/2fa/:id', async (req, reply) => {
+		const userId = parseInt(req.params.id, 10);
+
+		try {
+			const user = await prisma.user.findUnique({
+				where: { id: userId },
+			});
+
+			if (!user) return reply.code(404).send({ error: 'User not found' });
+
+			return reply.send({ user });
+		} catch (err) {
+			req.log.error(err);
+			return reply.code(500).send({ error: 'Failed to fetch user' });
 		}
 	});
 
