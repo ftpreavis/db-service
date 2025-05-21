@@ -72,12 +72,12 @@ module.exports = async function (fastify, opts) {
 				include: {
 					sender: { select: { id: true, username: true, avatar: true } },
 				},
-				orderBy: { createdAt: 'asc' },
+				orderBy: { createdAt: 'desc' },
 				take,
 				skip
 			});
 
-			return reply.send(messages);
+			return reply.send(messages.reverse());
 		} catch (err) {
 			console.error('Error getting messages:', err);
 			return reply.code(500).send({ error: 'Could not fetch messages' });
@@ -137,7 +137,7 @@ module.exports = async function (fastify, opts) {
 			const counts = await prisma.message.groupBy({
 				by: ['senderId'],
 				where: {
-					receiverId: parseId,
+					receiverId: parsedId,
 					read: false
 				},
 				_count: {
