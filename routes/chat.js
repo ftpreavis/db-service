@@ -69,6 +69,9 @@ module.exports = async function (fastify, opts) {
 						{ senderId: otherUserId, receiverId: currentUserId },
 					],
 				},
+				include: {
+					sender: { select: { id: true, username: true, avatar: true } },
+				},
 				orderBy: { createdAt: 'asc' },
 				take,
 				skip
