@@ -442,4 +442,56 @@ module.exports = async function (fastify, opts) {
 			return reply.code(500).send({ error: 'Could not delete friendship' });
 		}
 	});
+
+	fastify.patch('/users/:idOrUsername', async (req, reply) => {
+		const { idOrUsername } = req.params;
+		const { username, biography, password } = req.body;
+
+		try {
+			let user;
+			if (/^\d+$/.test(idOrUsername)) {
+				user = await prisma.user.findUnique({ where: { id: Number(idOrUsername) } });
+			} else {
+				user = await prisma.user.findUnique({ where: { username: idOrUsername } });
+			}
+
+			if (!user) {
+				return reply.code(404).send({ error: 'User not found' });
+			}
+
+			// Vérifie si le nouveau username est déjà pris
+			if (username && username !== user.username) {
+				const existing = await prisma.user.findUnique({ where: { username } });
+				if (existing && existing.id !== user.id) {
+					return reply.code(409).send({ error: 'Username already taken' });
+				}
+			}
+
+			const updateData = {};
+			if (username) updateData.username = username;
+			if (biography) updateData.biography = biography;
+			if (password) updateData.password = password;
+
+			const updatedUser = await prisma.user.update({
+				where: { id: user.id },
+				data: updateData,
+				select: {
+					id: true,
+					username: true,
+					biography: true,
+					avatar: true,
+				},
+			});
+
+			return reply.send(updatedUser);
+		} catch (err) {
+			req.log.error('DB update failed:', err);
+			return reply.code(500).send({
+				error: 'DB: Failed to update user',
+				message: err.message,
+				stack: err.stack,
+			});
+		}
+	});
+
 };
