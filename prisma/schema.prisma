@@ -75,8 +75,9 @@ model Match {
   id           Int         @id @default(autoincrement())
   player1      User        @relation("Player1", fields: [player1Id], references: [id])
   player1Id    Int
-  player2      User        @relation("Player2", fields: [player2Id], references: [id])
-  player2Id    Int
+  player2      User?       @relation("Player2", fields: [player2Id], references: [id])
+  player2Id    Int?
+  player2Name  String?
   player1Score Int
   player2Score Int
   status       MatchStatus @default(PENDING)
