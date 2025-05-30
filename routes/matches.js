@@ -20,6 +20,7 @@ module.exports = async function (fastify, opts) {
                             username: true,
                         }
                     },
+                    player2Name: true,
                     player1Score: true,
                     player2Score: true,
                     status: true,
@@ -60,6 +61,7 @@ module.exports = async function (fastify, opts) {
                             username: true,
                         }
                     },
+                    player2Name: true,
                     player1Score: true,
                     player2Score: true,
                     status: true,
@@ -75,4 +77,39 @@ module.exports = async function (fastify, opts) {
             return res.code(500).send({ error: 'Internal Server Error' });
         }
     })
+
+    fastify.post('/matches', async (req, res) => {
+        const {
+            player1Id,
+            player2Id,
+            player2Name,
+            player1Score,
+            player2Score
+        } = req.body;
+
+        if (!player1Id || typeof player1Score !== 'number' || typeof player2Score !== 'number') {
+            return res.code(400).send({ error: 'missing or invalid required field(s)' });
+        }
+
+        if (!player2Id && !player2Name) {
+            return res.code(400).send({ error: 'Either player2Id or player2Name must be provided' });
+        }
+
+        try {
+            const match = await prisma.match.create({
+                data: {
+                    player1Id,
+                    player2Id: player2Id ?? null,
+                    player2Name: player2Id ? null : player2Name,
+                    player1Score,
+                    player2Score,
+                    status: 'DONE'
+                }
+            });
+            return res.code(201).send(match);
+        } catch (err) {
+            console.error('Error creating match', err);
+            return res.code(500).send({ error: 'Internal Server Error' });
+        }
+    });
 }
