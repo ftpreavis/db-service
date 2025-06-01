@@ -27,7 +27,13 @@ COPY --from=builder /app/utils ./utils
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
 
-USER app
+RUN mkdir -p /app/database
+
+COPY database_perms.sh ./
+RUN chmod +x database_perms.sh
+
+USER root
+ENTRYPOINT ["./database_perms.sh"]
 
 HEALTHCHECK --interval=10s --timeout=5s --start-period=5s \
   CMD curl -f http://localhost:3000/metrics || exit 1
