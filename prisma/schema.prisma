@@ -14,17 +14,26 @@ datasource db {
 }
 
 model User {
-  id               Int          @id @default(autoincrement())
-  username         String       @unique
-  email            String       @unique
+  id               Int           @id @default(autoincrement())
+  username         String        @unique
+  email            String        @unique
   password         String? //optionnal password (site users only)
-  googleId         String?      @unique //optionnal (google users only)
+  googleId         String?       @unique //optionnal (google users only)
   authMethod       AuthMethod
   stats            Stat?
   avatar           String?
-  role             Role         @default(USER)
-  sentRequests     Friendship[] @relation("FriendshipSender")
-  receivedRequests Friendship[] @relation("FriendshipReceiver")
+  role             Role          @default(USER)
+  biography        String?
+  sentRequests     Friendship[]  @relation("FriendshipSender")
+  receivedRequests Friendship[]  @relation("FriendshipReceiver")
+  MatchesAsPlayer1 Match[]       @relation("Player1")
+  MatchesAsPlayer2 Match[]       @relation("Player2")
+  sentMessages     Message[]     @relation("SentMessages")
+  receivedMessages Message[]     @relation("ReceivedMessages")
+  blockedUsers     BlockedUser[] @relation("Blocker")
+  blockedBy        BlockedUser[] @relation("Blocked")
+  twoFAEnabled     Boolean       @default(false)
+  twoFASecret      String?
 }
 
 enum FriendshipStatus {
@@ -47,20 +56,56 @@ model Stat {
   id     Int  @id @default(autoincrement())
   user   User @relation(fields: [userId], references: [id])
   userId Int  @unique
-
-  wins   Int @default(0)
-  losses Int @default(0)
-  streak Int @default(0)
+  wins   Int  @default(0)
+  losses Int  @default(0)
+  streak Int  @default(0)
 }
 
 model Friendship {
-  id     Int  @id @default(autoincrement())
-  user   User @relation("FriendshipSender", fields: [userId], references: [id])
-  userId Int
-
-  friend   User @relation("FriendshipReceiver", fields: [friendId], references: [id])
-  friendId Int
-
+  id        Int              @id @default(autoincrement())
+  user      User             @relation("FriendshipSender", fields: [userId], references: [id])
+  userId    Int
+  friend    User             @relation("FriendshipReceiver", fields: [friendId], references: [id])
+  friendId  Int
   status    FriendshipStatus @default(PENDING)
   createdAt DateTime         @default(now())
+}
+
+model Match {
+  id           Int         @id @default(autoincrement())
+  player1      User        @relation("Player1", fields: [player1Id], references: [id])
+  player1Id    Int
+  player2      User?       @relation("Player2", fields: [player2Id], references: [id])
+  player2Id    Int?
+  player2Name  String?
+  player1Score Int
+  player2Score Int
+  status       MatchStatus @default(PENDING)
+  playedAt     DateTime    @default(now())
+}
+
+enum MatchStatus {
+  PENDING
+  DONE
+  CANCELLED
+}
+
+model Message {
+  id         Int      @id @default(autoincrement())
+  sender     User     @relation("SentMessages", fields: [senderId], references: [id])
+  senderId   Int
+  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  receiverId Int
+  content    String
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
+
+model BlockedUser {
+  blocker   User @relation("Blocker", fields: [blockerId], references: [id])
+  blockerId Int
+  blocked   User @relation("Blocked", fields: [blockedId], references: [id])
+  blockedId Int
+
+  @@id([blockerId, blockedId])
 }

@@ -42,22 +42,56 @@ module.exports = async function (fastify, opts) {
 
 		let user;
 
+		const include = {
+			stats: true,
+			sentRequests: {
+				select: {
+					id: true,
+					status: true,
+					userId: true,
+					friendId: true
+				}
+			},
+			receivedRequests: {
+				select: {
+					id: true,
+					status: true,
+					userId: true,
+					friendId: true
+				}
+			},
+			MatchesAsPlayer1: {
+				where: { status: 'DONE' },
+				include: {
+					player2: { select: { username: true } }
+				},
+				orderBy: { playedAt: 'desc' }
+			},
+			MatchesAsPlayer2: {
+				where: { status: 'DONE' },
+				include: {
+					player1: { select: { username: true } }
+				},
+				orderBy: { playedAt: 'desc' }
+			},
+		};
+
 		if (/^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$/.test(idOrUsername)) {
 			// Search by email
 			user = await prisma.user.findUnique({
 				where: {email: idOrUsername},
-				include: {stats: true}
+				include
 			});
 		} else if (/^\d+$/.test(idOrUsername)) {
 			// Search by id or username
 			user = await prisma.user.findUnique({
 				where: { id: Number(idOrUsername) },
-				include: { stats: true}
+				include
 			});
 		} else {
 			user = await prisma.user.findUnique({
 				where: { username: idOrUsername },
-				include: { stats: true }
+				include
 			});
 		}
 
@@ -82,7 +116,12 @@ module.exports = async function (fastify, opts) {
 				}
 			});
 
-			return { id: user.id };
+			return {
+				id: user.id,
+				username: user.username,
+				email: user.email,
+				role: user.role,
+			};
 		} catch (err) {
 			console.error(err);
 			return reply.code(400).send({ error: 'User already exists or invalid data' });
@@ -113,7 +152,7 @@ module.exports = async function (fastify, opts) {
 					authMethod: 'GOOGLE',
 					username: username,
 				},
-				select: {id: true, username: true, role: true},
+				select: {id: true, username: true, role: true, email: true},
 			});
 		} catch(err) {
 			console.error(err);
@@ -147,6 +186,7 @@ module.exports = async function (fastify, opts) {
 				email: user.email,
 				password: user.password,
 				role: user.role,
+				twoFAEnabled: user.twoFAEnabled,
 			};
 		} catch (err) {
 			console.error('Internal user fetch failed:', err);
@@ -403,4 +443,94 @@ module.exports = async function (fastify, opts) {
 			return reply.code(500).send({ error: 'Could not delete friendship' });
 		}
 	});
+
+	fastify.patch('/users/:idOrUsername', async (req, reply) => {
+		const { idOrUsername } = req.params;
+		const { username, biography, password, twoFAEnabled, twoFASecret } = req.body;
+
+		try {
+			let user;
+			if (/^\d+$/.test(idOrUsername)) {
+				user = await prisma.user.findUnique({ where: { id: Number(idOrUsername) } });
+			} else {
+				user = await prisma.user.findUnique({ where: { username: idOrUsername } });
+			}
+
+			if (!user) {
+				return reply.code(404).send({ error: 'User not found' });
+			}
+
+			// Vérifie si le nouveau username est déjà pris
+			if (username && username !== user.username) {
+				const existing = await prisma.user.findUnique({ where: { username } });
+				if (existing && existing.id !== user.id) {
+					return reply.code(409).send({ error: 'Username already taken' });
+				}
+			}
+
+			const updateData = {};
+			if (username) updateData.username = username;
+			if (biography) updateData.biography = biography;
+			if (password) updateData.password = password;
+			if (twoFASecret) updateData.twoFASecret = twoFASecret;
+			if (twoFAEnabled) updateData.twoFAEnabled = twoFAEnabled;
+
+			const updatedUser = await prisma.user.update({
+				where: { id: user.id },
+				data: updateData,
+				select: {
+					id: true,
+					username: true,
+					biography: true,
+					avatar: true,
+				},
+			});
+
+			return reply.send(updatedUser);
+		} catch (err) {
+			req.log.error('DB update failed:', err);
+			return reply.code(500).send({
+				error: 'DB: Failed to update user',
+				message: err.message,
+				stack: err.stack,
+			});
+		}
+	});
+
+	fastify.patch('/users/2fa/:id', async (req, reply) => {
+		const userId = parseInt(req.params.id, 10);
+		const { twoFASecret, twoFAEnabled } = req.body;
+
+		try {
+			const updated = await prisma.user.update({
+				where: { id: userId },
+				data: {
+					...(twoFASecret !== undefined && { twoFASecret }),
+					...(twoFAEnabled !== undefined && { twoFAEnabled }),
+				},
+			});
+			return reply.send(updated);
+		} catch (err) {
+			req.log.error('DB update failed:', err);
+			return reply.code(500).send({ error: 'Failed to update user' });
+		}
+	});
+
+	fastify.get('/users/2fa/:id', async (req, reply) => {
+		const userId = parseInt(req.params.id, 10);
+
+		try {
+			const user = await prisma.user.findUnique({
+				where: { id: userId },
+			});
+
+			if (!user) return reply.code(404).send({ error: 'User not found' });
+
+			return reply.send({ user });
+		} catch (err) {
+			req.log.error(err);
+			return reply.code(500).send({ error: 'Failed to fetch user' });
+		}
+	});
+
 };
