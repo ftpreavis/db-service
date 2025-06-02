@@ -364,7 +364,7 @@ module.exports = async function (fastify, opts) {
 				const otherUser = isSender ? f.friend : f.user;
 				return {
 					friendshipId: f.id,
-					id: otherUser.id,
+					friendId: otherUser.id,
 					username: otherUser.username
 				};
 			});
