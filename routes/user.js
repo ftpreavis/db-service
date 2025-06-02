@@ -361,7 +361,12 @@ module.exports = async function (fastify, opts) {
 
 			const formattedFriends = friends.map(f => {
 				const isSender = f.userId === parseInt(userId);
-				return isSender ? f.friend : f.user;
+				const otherUser = isSender ? f.friend : f.user;
+				return {
+					friendshipId: f.id,
+					id: otherUser.id,
+					username: otherUser.username
+				};
 			});
 
 			const pending = await prisma.friendship.findMany({
