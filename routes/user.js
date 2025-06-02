@@ -552,7 +552,7 @@ module.exports = async function (fastify, opts) {
 					username: `deleted_user_${userId}`,
 					email: `deleted_user_${userId}@example.com`,
 					avatar: null,
-					bio: null,
+					biography: null,
 					anonymized: true,
 					deletedAt: new Date(),
 				},
@@ -565,8 +565,9 @@ module.exports = async function (fastify, opts) {
 			});
 			return reply.send(anonymized);
 		} catch (err) {
+			console.error('Anonymize failed:', err);
 			req.log.error('Anonymization failed:', err);
-			return reply.code(500).send({ error: 'Anonymization failed' });
+			return reply.code(500).send({ error: 'Anonymization failed', details: err.message });
 		}
 	});
 
