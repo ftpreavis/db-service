@@ -34,6 +34,10 @@ model User {
   blockedBy        BlockedUser[] @relation("Blocked")
   twoFAEnabled     Boolean       @default(false)
   twoFASecret      String?
+
+  // GDPR Fields
+  deletedAt  DateTime?
+  anonymized Boolean   @default(false)
 }
 
 enum FriendshipStatus {
