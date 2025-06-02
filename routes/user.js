@@ -332,6 +332,8 @@ module.exports = async function (fastify, opts) {
 		}
 	});
 
+	//
+
 	fastify.get('/friends', async (req, reply) => {
 		const { userId } = req.query;
 
@@ -348,7 +350,10 @@ module.exports = async function (fastify, opts) {
 						{ friendId: parseInt(userId) },
 					]
 				},
-				include: {
+				select: {
+					id: true,
+					userId: true,
+					friendId: true,
 					user: { select: { id: true, username: true } },
 					friend: { select: { id: true, username: true } },
 				}
@@ -364,7 +369,8 @@ module.exports = async function (fastify, opts) {
 					status: 'PENDING',
 					friendId: parseInt(userId),
 				},
-				include: {
+				select: {
+					id: true,
 					user: { select: { id: true, username: true } },
 				}
 			});
@@ -379,10 +385,11 @@ module.exports = async function (fastify, opts) {
 				pendingRequests: formattedPending,
 			});
 		} catch (err) {
-			console.error('Failed to get friend list:', err);
+			console.error('Failed to get friend list:', err.message, err.stack);
 			return reply.code(500).send({ error: 'Could not fetch friends' });
 		}
 	});
+
 
 	fastify.get('/friends/sent', async (req, reply) => {
 		const { userId } = req.query;
