@@ -591,12 +591,21 @@ module.exports = async function (fastify, opts) {
 		}
 
 		try {
-			const settings = await prisma.userSettings.findUnique({
+			let settings = await prisma.userSettings.findUnique({
 				where: { userId },
 			});
 
 			if (!settings) {
-				return reply.code(404).send({ error: 'Settings not found' });
+				settings = await prisma.userSettings.create({
+					data: {
+						userId,
+						background: 'default',
+						paddle: 'default',
+						ball: 'default',
+						divider: 'default',
+						score: 'default',
+					}
+				});
 			}
 
 			return reply.send(settings);
