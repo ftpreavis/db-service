@@ -651,29 +651,49 @@ module.exports = async function (fastify, opts) {
 
 	fastify.patch('/users/:id/settings', async (req, reply) => {
 		const userId = parseInt(req.params.id, 10);
-		const { background, paddle, ball, divider, score } = req.body;
+		const data = req.body;
 
 		if (isNaN(userId)) {
 			return reply.code(400).send({ error: 'Invalid user ID' });
 		}
 
 		try {
+			// Vérifie si les settings existent
+			let settings = await prisma.userSettings.findUnique({ where: { userId } });
+
+			if (!settings) {
+				// Création avec les champs partiels reçus
+				settings = await prisma.userSettings.create({
+					data: {
+						userId,
+						background: data.background ?? 'default',
+						paddle: data.paddle ?? 'default',
+						ball: data.ball ?? 'default',
+						divider: data.divider ?? 'default',
+						score: data.score ?? 'default',
+					},
+				});
+				return reply.code(201).send(settings);
+			}
+
+			// Mise à jour partielle
 			const updated = await prisma.userSettings.update({
 				where: { userId },
 				data: {
-					...(background !== undefined && { background }),
-					...(paddle !== undefined && { paddle }),
-					...(ball !== undefined && { ball }),
-					...(divider !== undefined && { divider }),
-					...(score !== undefined && { score }),
+					...(data.background !== undefined && { background: data.background }),
+					...(data.paddle !== undefined && { paddle: data.paddle }),
+					...(data.ball !== undefined && { ball: data.ball }),
+					...(data.divider !== undefined && { divider: data.divider }),
+					...(data.score !== undefined && { score: data.score }),
 				}
 			});
 
 			return reply.send(updated);
 		} catch (err) {
-			console.error('Failed to update settings:', err);
-			return reply.code(500).send({ error: 'Could not update settings' });
+			console.error('Failed to patch settings:', err);
+			return reply.code(500).send({ error: 'Could not patch settings' });
 		}
-	})
+	});
+
 
 };
