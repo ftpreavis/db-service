@@ -583,4 +583,88 @@ module.exports = async function (fastify, opts) {
 		}
 	});
 
+	fastify.get('/users/:id/settings', async (req, reply) => {
+		const userId = parseInt(req.params.id, 10);
+
+		if (isNaN(userId)) {
+			return reply.code(400).send({ error: 'Invalid user ID' });
+		}
+
+		try {
+			const settings = await prisma.userSettings.findUnique({
+				where: { userId },
+			});
+
+			if (!settings) {
+				return reply.code(404).send({ error: 'Settings not found' });
+			}
+
+			return reply.send(settings);
+		} catch (err) {
+			console.error('Failed to get settings:', err);
+			return reply.code(500).send({ error: 'Could not fetch settings' });
+		}
+	});
+
+	fastify.post('/users/:id/settings', async (req, reply) => {
+		const userId = parseInt(req.params.id, 10);
+		const { background, paddle, ball, divider, score } = req.body;
+
+		if (isNaN(userId)) {
+			return reply.code(400).send({ error: 'Invalid user ID' });
+		}
+
+		try {
+			const existing = await prisma.userSettings.findUnique({
+				where: { userId },
+			});
+			if (existing) {
+				return reply.code(409).send({ error: 'Settings already exists for this user' });
+			}
+
+			const settings = await prisma.userSettings.create({
+				data: {
+					userId,
+					background,
+					paddle,
+					ball,
+					divider,
+					score,
+				},
+			});
+
+			return reply.code(201).send(settings);
+		} catch (err) {
+			console.error('Failed to create settings:', err);
+			return reply.code(500).send({ error: 'Could not create settings' });
+		}
+	});
+
+	fastify.patch('/users/:id/settings', async (req, reply) => {
+		const userId = parseInt(req.params.id, 10);
+		const { background, paddle, ball, divider, score } = req.body;
+
+		if (isNaN(userId)) {
+			return reply.code(400).send({ error: 'Invalid user ID' });
+		}
+
+		try {
+			const updated = await prisma.userSettings.update({
+				where: { userId },
+				data: {
+					...(background !== undefined && { background }),
+					...(paddle !== undefined && { paddle }),
+					...(ball !== undefined && { ball }),
+					...(divider !== undefined && { divider }),
+					...(score !== undefined && { score }),
+				}
+			});
+
+			return reply.send(updated);
+		} catch (err) {
+			console.error('Failed to update settings:', err);
+			return reply.code(500).send({ error: 'Could not update settings' });
+		}
+	})
+
 };

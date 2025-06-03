@@ -38,6 +38,10 @@ model User {
   // GDPR Fields
   deletedAt  DateTime?
   anonymized Boolean   @default(false)
+
+  // Settings
+  settings   UserSettings?
+  settingsId Int?          @unique
 }
 
 enum FriendshipStatus {
@@ -112,4 +116,15 @@ model BlockedUser {
   blockedId Int
 
   @@id([blockerId, blockedId])
+}
+
+model UserSettings {
+  id         Int     @id @default(autoincrement())
+  user       User    @relation(fields: [userId], references: [id])
+  userId     Int     @unique
+  background String?
+  paddle     String?
+  ball       String?
+  divider    String?
+  score      String?
 }
