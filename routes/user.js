@@ -695,5 +695,35 @@ module.exports = async function (fastify, opts) {
 		}
 	});
 
+	fastify.get('/users/search', async (req, reply) => {
+		const query = req.query.q;
+		console.log('[DB] Search query:', req.query);
+
+		if (!query || typeof query !== 'string' || query.length < 1) {
+			return reply.code(400).send({ error: 'Missing or invalid search' });
+		}
+
+		try {
+			const users = await prisma.user.findMany({
+				where: {
+					username: {
+						contains: query,
+					},
+					anonymized: false
+				},
+				take: 10,
+				select: {
+					id: true,
+					username: true,
+					avatar: true,
+				}
+			});
+
+			return reply.send(users);
+		} catch (err) {
+			console.error('[DB] Search failed FULL ERROR:', err);
+			return reply.code(500).send({ error: 'Search failed', details: err.message });
+		}
+	});
 
 };
