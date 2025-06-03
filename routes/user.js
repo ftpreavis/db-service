@@ -583,4 +583,147 @@ module.exports = async function (fastify, opts) {
 		}
 	});
 
+	fastify.get('/users/:id/settings', async (req, reply) => {
+		const userId = parseInt(req.params.id, 10);
+
+		if (isNaN(userId)) {
+			return reply.code(400).send({ error: 'Invalid user ID' });
+		}
+
+		try {
+			let settings = await prisma.userSettings.findUnique({
+				where: { userId },
+			});
+
+			if (!settings) {
+				settings = await prisma.userSettings.create({
+					data: {
+						userId,
+						background: 'default',
+						paddle: 'default',
+						ball: 'default',
+						divider: 'default',
+						score: 'default',
+					}
+				});
+			}
+
+			return reply.send(settings);
+		} catch (err) {
+			console.error('Failed to get settings:', err);
+			return reply.code(500).send({ error: 'Could not fetch settings' });
+		}
+	});
+
+	fastify.post('/users/:id/settings', async (req, reply) => {
+		const userId = parseInt(req.params.id, 10);
+		const { background, paddle, ball, divider, score } = req.body;
+
+		if (isNaN(userId)) {
+			return reply.code(400).send({ error: 'Invalid user ID' });
+		}
+
+		try {
+			const existing = await prisma.userSettings.findUnique({
+				where: { userId },
+			});
+			if (existing) {
+				return reply.code(409).send({ error: 'Settings already exists for this user' });
+			}
+
+			const settings = await prisma.userSettings.create({
+				data: {
+					userId,
+					background,
+					paddle,
+					ball,
+					divider,
+					score,
+				},
+			});
+
+			return reply.code(201).send(settings);
+		} catch (err) {
+			console.error('Failed to create settings:', err);
+			return reply.code(500).send({ error: 'Could not create settings' });
+		}
+	});
+
+	fastify.patch('/users/:id/settings', async (req, reply) => {
+		const userId = parseInt(req.params.id, 10);
+		const data = req.body;
+
+		if (isNaN(userId)) {
+			return reply.code(400).send({ error: 'Invalid user ID' });
+		}
+
+		try {
+			// Vérifie si les settings existent
+			let settings = await prisma.userSettings.findUnique({ where: { userId } });
+
+			if (!settings) {
+				// Création avec les champs partiels reçus
+				settings = await prisma.userSettings.create({
+					data: {
+						userId,
+						background: data.background ?? 'default',
+						paddle: data.paddle ?? 'default',
+						ball: data.ball ?? 'default',
+						divider: data.divider ?? 'default',
+						score: data.score ?? 'default',
+					},
+				});
+				return reply.code(201).send(settings);
+			}
+
+			// Mise à jour partielle
+			const updated = await prisma.userSettings.update({
+				where: { userId },
+				data: {
+					...(data.background !== undefined && { background: data.background }),
+					...(data.paddle !== undefined && { paddle: data.paddle }),
+					...(data.ball !== undefined && { ball: data.ball }),
+					...(data.divider !== undefined && { divider: data.divider }),
+					...(data.score !== undefined && { score: data.score }),
+				}
+			});
+
+			return reply.send(updated);
+		} catch (err) {
+			console.error('Failed to patch settings:', err);
+			return reply.code(500).send({ error: 'Could not patch settings' });
+		}
+	});
+
+	fastify.get('/users/search', async (req, reply) => {
+		const query = req.query.q;
+		console.log('[DB] Search query:', req.query);
+
+		if (!query || typeof query !== 'string' || query.length < 1) {
+			return reply.code(400).send({ error: 'Missing or invalid search' });
+		}
+
+		try {
+			const users = await prisma.user.findMany({
+				where: {
+					username: {
+						contains: query,
+					},
+					anonymized: false
+				},
+				take: 10,
+				select: {
+					id: true,
+					username: true,
+					avatar: true,
+				}
+			});
+
+			return reply.send(users);
+		} catch (err) {
+			console.error('[DB] Search failed FULL ERROR:', err);
+			return reply.code(500).send({ error: 'Search failed', details: err.message });
+		}
+	});
+
 };
