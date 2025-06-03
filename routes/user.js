@@ -25,6 +25,9 @@ module.exports = async function (fastify, opts) {
 	fastify.get('/users', async (request, reply) => {
 		try{
 			return await prisma.user.findMany({
+				where: {
+					deletedAt: null,
+				},
 				select: {
 					id: true,
 					username: true,
@@ -94,7 +97,9 @@ module.exports = async function (fastify, opts) {
 				include
 			});
 		}
-
+		if (user?.deletedAt !== null) {
+			return reply.code(404).send({ error: 'User not found or deleted.' });
+		}
 		const safeUser = sanitizeUser(user);
 		if (!safeUser) {
 			return reply.code(500).send({ error: 'Sanitization failed' });
@@ -207,7 +212,7 @@ module.exports = async function (fastify, opts) {
 				where = {username: idOrUsername};
 			}
 
-			const updated = await prisma.user.update({
+			return await prisma.user.update({
 				where,
 				data: {avatar},
 				select: {
@@ -216,8 +221,6 @@ module.exports = async function (fastify, opts) {
 					avatar: true,
 				}
 			});
-
-			return updated;
 		} catch (err) {
 			console.error('Failed to update avatar', err);
 			return reply.code(500).send({ error: 'Could not update avatar' });
@@ -329,6 +332,8 @@ module.exports = async function (fastify, opts) {
 		}
 	});
 
+	//
+
 	fastify.get('/friends', async (req, reply) => {
 		const { userId } = req.query;
 
@@ -345,7 +350,10 @@ module.exports = async function (fastify, opts) {
 						{ friendId: parseInt(userId) },
 					]
 				},
-				include: {
+				select: {
+					id: true,
+					userId: true,
+					friendId: true,
 					user: { select: { id: true, username: true } },
 					friend: { select: { id: true, username: true } },
 				}
@@ -353,7 +361,12 @@ module.exports = async function (fastify, opts) {
 
 			const formattedFriends = friends.map(f => {
 				const isSender = f.userId === parseInt(userId);
-				return isSender ? f.friend : f.user;
+				const otherUser = isSender ? f.friend : f.user;
+				return {
+					friendshipId: f.id,
+					friendId: otherUser.id,
+					username: otherUser.username
+				};
 			});
 
 			const pending = await prisma.friendship.findMany({
@@ -361,7 +374,8 @@ module.exports = async function (fastify, opts) {
 					status: 'PENDING',
 					friendId: parseInt(userId),
 				},
-				include: {
+				select: {
+					id: true,
 					user: { select: { id: true, username: true } },
 				}
 			});
@@ -376,10 +390,11 @@ module.exports = async function (fastify, opts) {
 				pendingRequests: formattedPending,
 			});
 		} catch (err) {
-			console.error('Failed to get friend list:', err);
+			console.error('Failed to get friend list:', err.message, err.stack);
 			return reply.code(500).send({ error: 'Could not fetch friends' });
 		}
 	});
+
 
 	fastify.get('/friends/sent', async (req, reply) => {
 		const { userId } = req.query;
@@ -530,6 +545,41 @@ module.exports = async function (fastify, opts) {
 		} catch (err) {
 			req.log.error(err);
 			return reply.code(500).send({ error: 'Failed to fetch user' });
+		}
+	});
+
+	// RGPD fields
+
+	fastify.post('/users/:id/anonymize', async (req, reply) => {
+		const userId = parseInt(req.params.id, 10);
+
+		if (isNaN(userId)) {
+			return reply.code(400).send({ error: 'Invalid user ID' });
+		}
+
+		try {
+			const anonymized = await prisma.user.update({
+				where: { id: userId },
+				data: {
+					username: `deleted_user_${userId}`,
+					email: `deleted_user_${userId}@example.com`,
+					avatar: null,
+					biography: null,
+					anonymized: true,
+					deletedAt: new Date(),
+				},
+				select: {
+					id: true,
+					username: true,
+					email: true,
+					anonymized: true,
+				}
+			});
+			return reply.send(anonymized);
+		} catch (err) {
+			console.error('Anonymize failed:', err);
+			req.log.error('Anonymization failed:', err);
+			return reply.code(500).send({ error: 'Anonymization failed', details: err.message });
 		}
 	});
 
