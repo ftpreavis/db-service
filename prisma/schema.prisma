@@ -60,6 +60,12 @@ enum Role {
   ADMIN
 }
 
+enum Lang {
+  ENGLISH
+  FRENCH
+  DOVAHKIIN
+}
+
 model Stat {
   id     Int  @id @default(autoincrement())
   user   User @relation(fields: [userId], references: [id])
@@ -127,4 +133,6 @@ model UserSettings {
   ball       String?
   divider    String?
   score      String?
+  darkMode   Boolean @default(false)
+  lang       Lang    @default(ENGLISH)
 }
