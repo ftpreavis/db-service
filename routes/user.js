@@ -617,7 +617,7 @@ module.exports = async function (fastify, opts) {
 
 	fastify.post('/users/:id/settings', async (req, reply) => {
 		const userId = parseInt(req.params.id, 10);
-		const { background, paddle, ball, divider, score } = req.body;
+		const { background, paddle, ball, divider, score, darkMode, lang } = req.body;
 
 		if (isNaN(userId)) {
 			return reply.code(400).send({ error: 'Invalid user ID' });
@@ -639,6 +639,8 @@ module.exports = async function (fastify, opts) {
 					ball,
 					divider,
 					score,
+					darkMode,
+					lang,
 				},
 			});
 
@@ -671,6 +673,8 @@ module.exports = async function (fastify, opts) {
 						ball: data.ball ?? 'default',
 						divider: data.divider ?? 'default',
 						score: data.score ?? 'default',
+						darkMode: data.darkMode,
+						lang: data.lang,
 					},
 				});
 				return reply.code(201).send(settings);
@@ -685,6 +689,8 @@ module.exports = async function (fastify, opts) {
 					...(data.ball !== undefined && { ball: data.ball }),
 					...(data.divider !== undefined && { divider: data.divider }),
 					...(data.score !== undefined && { score: data.score }),
+					...(data.darkMode !== undefined && { darkMode: data.darkMode }),
+					...(data.lang !== undefined && { lang: data.lang }),
 				}
 			});
 
